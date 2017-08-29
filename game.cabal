@@ -20,6 +20,7 @@ library
                        microlens-platform,
                        vty,
                        linear,
+                       multiset,
                        array
   default-language:    Haskell2010
 
