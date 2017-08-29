@@ -63,6 +63,11 @@ keyDir 'd' = V3 0 1 0
 keyDir 'q' = V3 0 0 (-1)
 keyDir 'e' = V3 0 0 1
 
+inBounds :: Array (V3 Int) a -> V3 Int -> Bool
+inBounds a xyz = let (lb,ub) = bounds a
+                 in all (>= 0) (xyz - lb) &&
+                    all (<= 0) (xyz - ub)
+
 removeBlock :: V3 Int -> Game -> Game
 removeBlock dir g = let xyz = g^.loc + dir
                         t = (g^.world) ! xyz
@@ -80,6 +85,9 @@ placeBlock dir g = let xyz = g^.loc + dir
                                    else g
                        _ -> g
 
+isValidDir :: Game -> V3 Int -> Bool
+isValidDir g dir = inBounds (g^.world) (dir + (g^.loc))
+
 commitChanges :: Game -> Game
 commitChanges g = set worldChanges [] $
                   over world (// (g^.worldChanges)) g
@@ -90,14 +98,14 @@ updateGame (EvKey (KChar c) mods) g =
         Normal -> case (c,mods) of
             ('r',[]) -> set inputMode Remove g
             ('p',[]) -> set inputMode Place g
-            (c, []) -> if isDirKey c
+            (c, []) -> if isDirKey c && isValidDir g (keyDir c)
                        then over loc (+ keyDir c) g
                        else g
             _ -> g
-        Remove -> if mods == [] && isDirKey c
+        Remove -> if mods == [] && isDirKey c && isValidDir g (keyDir c)
                   then removeBlock (keyDir c) (set inputMode Normal g)
                   else (set inputMode Normal g)
-        Place -> if mods == [] && isDirKey c
+        Place -> if mods == [] && isDirKey c && isValidDir g (keyDir c)
                  then placeBlock (keyDir c) (set inputMode Normal g)
                  else (set inputMode Normal g)
 updateGame _ g = g
