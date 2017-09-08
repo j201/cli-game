@@ -35,7 +35,7 @@ keyDir 'q' = V3 0 0 (-1)
 keyDir 'e' = V3 0 0 1
 
 isValidDir :: Game -> Dir -> Bool
-isValidDir g dir = inBounds (g^.world) (dir + (g^.loc))
+isValidDir g dir = inBounds (g^.area) (dir + (g^.loc))
 
 correctSelected :: UIState -> UIState
 correctSelected ui = let s = ui^.selected
@@ -90,7 +90,7 @@ gameImageAt :: Game -> Loc -> Image
 gameImageAt g xyz = if xyz == g^.loc
                     then playerImage
                     else let z = xyz^._z
-                             w = g^.world
+                             w = g^.area
                              block = w ! xyz
                          in if block == Air && z > (-maxDim)
                             then blockImage (w ! (xyz + (V3 0 0 (-1))))
@@ -104,7 +104,7 @@ status ui = string defAttr (show (ui^.game^.loc)) <->
 render :: UIState -> Picture
 render ui = let g = ui^.game
                 z = view (loc . _z) g
-                w = g^.world
+                w = g^.area
             in picForImage $ (<|> status ui) $ vertCat $ map horizCat $ [[gameImageAt g (V3 x y z) | y <- [-maxDim..maxDim]] | x <- [-maxDim..maxDim]]
 
 runGame :: Vty -> UIState -> IO ()

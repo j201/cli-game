@@ -18,16 +18,16 @@ data Block = Dirt | Stone | Air
 data Game = Game {
     _loc :: Loc,
     _inventory :: Seq (Block,Int),
-    _world :: Array Loc Block,
-    _worldChanges :: [(Loc, Block)]
+    _area :: Array Loc Block,
+    _areaChanges :: [(Loc, Block)]
 }
 
 makeLenses ''Game
 
 maxDim = 10
 
-initWorld :: Array Loc Block
-initWorld = array (negate (V3 maxDim maxDim maxDim), V3 maxDim maxDim maxDim)
+initArea :: Array Loc Block
+initArea = array (negate (V3 maxDim maxDim maxDim), V3 maxDim maxDim maxDim)
                   [(V3 x y z, if z >= 0 then Air
                               else if even (x + y) then Dirt
                               else Stone) |
@@ -39,8 +39,8 @@ initGame :: Game
 initGame = Game {
     _loc = (V3 0 0 0),
     _inventory = DS.empty,
-    _world = initWorld,
-    _worldChanges = []
+    _area = initArea,
+    _areaChanges = []
 }
 
 inBounds :: Array Loc a -> Dir -> Bool
@@ -73,16 +73,16 @@ removeItem b g = case DS.findIndexL ((== b) . fst) (g^.inventory) of
 
 removeBlock :: Dir -> Game -> Game
 removeBlock dir g = let xyz = g^.loc + dir
-                        b = (g^.world) ! xyz
+                        b = (g^.area) ! xyz
                     in if b /= Air
-                       then over worldChanges ((xyz,Air):) $
+                       then over areaChanges ((xyz,Air):) $
                             addItem b g
                        else g
 
 placeBlock :: Dir -> Int -> Game -> Game
 placeBlock dir i g = let xyz = g^.loc + dir
-                     in if ((g^.world) ! xyz) == Air
-                        then over worldChanges ((xyz, fst $ DS.index (g^.inventory) i):) $
+                     in if ((g^.area) ! xyz) == Air
+                        then over areaChanges ((xyz, fst $ DS.index (g^.inventory) i):) $
                              removeItemAt i g
                         else g
 
@@ -97,7 +97,7 @@ handleAction (PlaceBlock dir i) g = placeBlock dir i g
 handleAction (RemoveBlock dir) g = removeBlock dir g
 
 commitChanges :: Game -> Game
-commitChanges g = if g^.worldChanges == []
+commitChanges g = if g^.areaChanges == []
                   then g
-                  else set worldChanges [] $
-                       over world (// (g^.worldChanges)) g
+                  else set areaChanges [] $
+                       over area (// (g^.areaChanges)) g
