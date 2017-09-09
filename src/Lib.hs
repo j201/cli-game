@@ -11,6 +11,7 @@ import Linear.V3
 import Lens.Micro.Platform
 import Graphics.Vty
 import qualified Data.Sequence as DS
+import Control.Monad.Random (evalRand, getStdGen, mkStdGen)
 
 data InputMode = Normal | Remove | Place
     deriving (Eq, Show)
@@ -115,13 +116,16 @@ runGame vty ui = do
     then shutdown vty
     else runGame vty (handleEvent e ui)
 
-initUIState = UIState {
-    _selected = Nothing,
-    _game = initGame,
-    _inputMode = Normal
-}
+initUIState :: IO UIState
+initUIState = do g <- getStdGen
+                 return $ UIState {
+                              _selected = Nothing,
+                              _game = evalRand initGame g,
+                              _inputMode = Normal
+                          }
 
 run = do
     cfg <- standardIOConfig
     vty <- mkVty cfg
-    runGame vty initUIState
+    ui <- initUIState
+    runGame vty ui

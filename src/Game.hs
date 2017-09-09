@@ -39,26 +39,26 @@ perlin = do r <- getRandom
                        MN.perlinSeed = r
                      }
 
-perlinAt :: RandomGen g => Loc -> Rand g Double
-perlinAt l = let (V3 x y z) = fmap fromIntegral l ^/ fromIntegral maxDim
-             in case MN.getValue MN.perlin (x,y,z)
-                  of (Just d) -> d -- I'm a bad widdle boy
+perlinAt :: Loc -> MN.Perlin -> Double
+perlinAt l p = let (V3 x y z) = fmap fromIntegral l ^/ fromIntegral maxDim
+               in case MN.getValue p (x,y,z)
+                    of (Just d) -> d -- I'm a bad widdle boy
 
-initArea :: RandomGen g => Rand g (Array Loc Block)
-initArea = array (negate (V3 maxDim maxDim maxDim), V3 maxDim maxDim maxDim)
-                  [(V3 x y z, if z >= 0 then Air
-                              else if perlinAt (V3 x y z) > 0.0 then Dirt
-                              else Stone) |
-                   x <- [-maxDim..maxDim],
-                   y <- [-maxDim..maxDim],
-                   z <- [-maxDim..maxDim]]
+initArea :: MN.Perlin -> Array Loc Block
+initArea p = array (negate (V3 maxDim maxDim maxDim), V3 maxDim maxDim maxDim)
+                   [(V3 x y z, if z >= 0 then Air
+                               else if perlinAt (V3 x y z) p > 0.0 then Dirt
+                               else Stone) |
+                    x <- [-maxDim..maxDim],
+                    y <- [-maxDim..maxDim],
+                    z <- [-maxDim..maxDim]]
 
 initGame :: RandomGen g => Rand g Game
-initGame = do area <- initArea
+initGame = do p <- perlin
               return $ Game {
                            _loc = (V3 0 0 0),
                            _inventory = DS.empty,
-                           _area = initArea,
+                           _area = initArea p,
                            _areaChanges = []
                        }
 
