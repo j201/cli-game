@@ -15,7 +15,7 @@ import Control.Monad.Random
 type Dir = V3 Int
 type Loc = V3 Int
 
-data Block = Dirt | Stone | Air
+data Block = Dirt | Stone | Bedrock | Air
     deriving (Eq, Show, Ord)
 
 data Game = Game {

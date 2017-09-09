@@ -80,22 +80,44 @@ handleEvent (EvKey (KChar c) mods) ui =
         _ -> ui
 handleEvent _ ui = ui
 
+data Tile = Tile (Attr -> Attr) Char
+
+blockTile :: Block -> Tile
+blockTile Dirt = Tile (`withForeColor` red) '#'
+blockTile Stone = Tile (`withForeColor` blue) '#'
+blockTile Bedrock = Tile (`withForeColor` blue) 'X'
+blockTile Air = Tile id ' '
+
+blockImageWith :: (Attr -> Attr) -> Block -> Image
+blockImageWith f b = let Tile g c = blockTile b
+                     in char (f $ g defAttr) c
+
 blockImage :: Block -> Image
-blockImage Dirt = char (defAttr `withForeColor` red) '#'
-blockImage Stone = char (defAttr `withForeColor` blue) '#'
-blockImage Air = char defAttr ' '
+blockImage = blockImageWith id
 
 playerImage = char (defAttr `withForeColor` white) '@'
+
+nextLower :: Array Loc Block -> Loc -> Block
+nextLower a xyz = if (xyz^._z) == -maxDim
+                  then Bedrock
+                  else a ! (xyz + (V3 0 0 (-1)))
+
+nextLowerNonAir :: Array Loc Block -> Loc -> Block
+nextLowerNonAir a xyz = let b = a ! xyz
+                            z = xyz^._z
+                        in if b /= Air then b
+                           else if z == -maxDim then Bedrock
+                           else nextLowerNonAir a (xyz + (V3 0 0 (-1)))
 
 gameImageAt :: Game -> Loc -> Image
 gameImageAt g xyz = if xyz == g^.loc
                     then playerImage
-                    else let z = xyz^._z
-                             w = g^.area
-                             block = w ! xyz
-                         in if block == Air && z > (-maxDim)
-                            then blockImage (w ! (xyz + (V3 0 0 (-1))))
-                            else blockImage block
+                    else let a = g^.area
+                             b = a ! xyz
+                             b' = nextLower a xyz
+                         in if b /= Air then blockImage b
+                            else if b' /= Air then blockImage b'
+                            else blockImageWith (`withStyle` dim) $ nextLowerNonAir a xyz
 
 status :: UIState -> Image
 status ui = string defAttr (show (ui^.game^.loc)) <->
