@@ -22,7 +22,9 @@ library
                        vty,
                        linear,
                        containers,
-                       array
+                       array,
+                       Noise,
+                       MonadRandom
   default-language:    Haskell2010
 
 executable game-exe

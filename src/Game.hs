@@ -5,9 +5,12 @@ where
 
 import Data.Array
 import Linear.V3
+import Linear.Vector ((^/))
 import Lens.Micro.Platform
 import Data.Sequence (Seq, (|>), (<|), (><))
 import qualified Data.Sequence as DS
+import qualified Math.Noise as MN
+import Control.Monad.Random
 
 type Dir = V3 Int
 type Loc = V3 Int
@@ -26,22 +29,38 @@ makeLenses ''Game
 
 maxDim = 10
 
-initArea :: Array Loc Block
+perlin :: RandomGen g => Rand g MN.Perlin
+perlin = do r <- getRandom
+            return $ MN.Perlin {
+                       MN.perlinFrequency = 1.0,
+                       MN.perlinLacunarity = 2.0,
+                       MN.perlinOctaves = 6,
+                       MN.perlinPersistence = 0.5,
+                       MN.perlinSeed = r
+                     }
+
+perlinAt :: RandomGen g => Loc -> Rand g Double
+perlinAt l = let (V3 x y z) = fmap fromIntegral l ^/ fromIntegral maxDim
+             in case MN.getValue MN.perlin (x,y,z)
+                  of (Just d) -> d -- I'm a bad widdle boy
+
+initArea :: RandomGen g => Rand g (Array Loc Block)
 initArea = array (negate (V3 maxDim maxDim maxDim), V3 maxDim maxDim maxDim)
                   [(V3 x y z, if z >= 0 then Air
-                              else if even (x + y) then Dirt
+                              else if perlinAt (V3 x y z) > 0.0 then Dirt
                               else Stone) |
                    x <- [-maxDim..maxDim],
                    y <- [-maxDim..maxDim],
                    z <- [-maxDim..maxDim]]
 
-initGame :: Game
-initGame = Game {
-    _loc = (V3 0 0 0),
-    _inventory = DS.empty,
-    _area = initArea,
-    _areaChanges = []
-}
+initGame :: RandomGen g => Rand g Game
+initGame = do area <- initArea
+              return $ Game {
+                           _loc = (V3 0 0 0),
+                           _inventory = DS.empty,
+                           _area = initArea,
+                           _areaChanges = []
+                       }
 
 inBounds :: Array Loc a -> Dir -> Bool
 inBounds a xyz = let (lb,ub) = bounds a
