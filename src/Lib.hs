@@ -14,6 +14,7 @@ import qualified Data.Sequence as DS
 import Control.Monad.Random (evalRand, getStdGen, mkStdGen)
 import Data.Colour.RGBSpace
 import Data.Colour.RGBSpace.HSL
+import System.Environment (setEnv)
 
 import Debug.Trace
 
@@ -169,6 +170,7 @@ initUIState = do g <- getStdGen
                           }
 
 run = do
+    setEnv "TERM" "xterm-256color"
     cfg <- standardIOConfig
     vty <- mkVty cfg
     ui <- initUIState
