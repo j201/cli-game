@@ -24,7 +24,8 @@ library
                        containers,
                        array,
                        Noise,
-                       MonadRandom
+                       MonadRandom,
+                       colour
   default-language:    Haskell2010
 
 executable game-exe

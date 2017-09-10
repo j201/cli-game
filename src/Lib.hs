@@ -12,6 +12,10 @@ import Lens.Micro.Platform
 import Graphics.Vty
 import qualified Data.Sequence as DS
 import Control.Monad.Random (evalRand, getStdGen, mkStdGen)
+import Data.Colour.RGBSpace
+import Data.Colour.RGBSpace.HSL
+
+import Debug.Trace
 
 data InputMode = Normal | Remove | Place
     deriving (Eq, Show)
@@ -80,17 +84,35 @@ handleEvent (EvKey (KChar c) mods) ui =
         _ -> ui
 handleEvent _ ui = ui
 
-data Tile = Tile (Attr -> Attr) Char
+toVtyColor :: (RealFrac a, Num a) => RGB a -> Color
+toVtyColor rgb = let rgb' = fmap (truncate . (* 255)) rgb
+                 in uncurryRGB rgbColor rgb'
+
+_hue :: (RealFrac a, Num a) => Lens' (RGB a) a
+_hue = lens hue (\rgb h -> hsl h (saturation rgb) (lightness rgb))
+
+_saturation :: (RealFrac a, Num a) => Lens' (RGB a) a
+_saturation = lens saturation (\rgb s -> hsl (hue rgb) s (lightness rgb))
+
+_lightness :: (RealFrac a, Num a) => Lens' (RGB a) a
+_lightness = lens lightness (\rgb l -> hsl (hue rgb) (saturation rgb) l)
+
+data Tile = Tile {
+    _foreColor :: (RGB Double),
+    _tileChar :: Char -- leaving out background, style for now
+}
+
+makeLenses ''Tile
 
 blockTile :: Block -> Tile
-blockTile Dirt = Tile (`withForeColor` red) '#'
-blockTile Stone = Tile (`withForeColor` blue) '#'
-blockTile Bedrock = Tile (`withForeColor` blue) 'X'
-blockTile Air = Tile id ' '
+blockTile Dirt = Tile (hsl 0 1.0 0.5) '#'
+blockTile Stone = Tile (hsl 120 1.0 0.5) '#'
+blockTile Bedrock = Tile (hsl 120 1.0 0.5) 'X'
+blockTile Air = Tile (hsl 0 0.0 0.0) ' '
 
-blockImageWith :: (Attr -> Attr) -> Block -> Image
-blockImageWith f b = let Tile g c = blockTile b
-                     in char (f $ g defAttr) c
+blockImageWith :: (Tile -> Tile) -> Block -> Image
+blockImageWith f b = let Tile rgb c = f $ blockTile b
+                     in char (defAttr `withForeColor` (toVtyColor rgb)) c
 
 blockImage :: Block -> Image
 blockImage = blockImageWith id
@@ -117,7 +139,7 @@ gameImageAt g xyz = if xyz == g^.loc
                              b' = nextLower a xyz
                          in if b /= Air then blockImage b
                             else if b' /= Air then blockImage b'
-                            else blockImageWith (`withStyle` dim) $ nextLowerNonAir a xyz
+                            else blockImageWith (over foreColor (over _lightness (/ 2))) $ nextLowerNonAir a xyz
 
 status :: UIState -> Image
 status ui = string defAttr (show (ui^.game^.loc)) <->
