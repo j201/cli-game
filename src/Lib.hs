@@ -4,6 +4,7 @@ module Lib
     ( run
     ) where
 
+import Types
 import Game
 
 import Data.Array
@@ -11,12 +12,10 @@ import Linear.V3
 import Lens.Micro.Platform
 import Graphics.Vty
 import qualified Data.Sequence as DS
-import Control.Monad.Random (evalRand, getStdGen, mkStdGen)
+import Control.Monad.Random (evalRand, getStdGen)
 import Data.Colour.RGBSpace
 import Data.Colour.RGBSpace.HSL
 import System.Environment (setEnv)
-
-import Debug.Trace
 
 data InputMode = Normal | Remove | Place
     deriving (Eq, Show)
@@ -150,7 +149,6 @@ status ui = string defAttr (show (ui^.game^.loc)) <->
 render :: UIState -> Picture
 render ui = let g = ui^.game
                 z = view (loc . _z) g
-                w = g^.area
             in picForImage $ (<|> status ui) $ vertCat $ map horizCat $ [[gameImageAt g (V3 x y z) | y <- [-maxDim..maxDim]] | x <- [-maxDim..maxDim]]
 
 runGame :: Vty -> UIState -> IO ()

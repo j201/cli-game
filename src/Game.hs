@@ -3,6 +3,8 @@
 module Game
 where
 
+import Types
+
 import Data.Array
 import Linear.V3
 import Linear.Vector ((^/))
@@ -11,21 +13,6 @@ import Data.Sequence (Seq, (|>), (<|), (><))
 import qualified Data.Sequence as DS
 import qualified Math.Noise as MN
 import Control.Monad.Random
-
-type Dir = V3 Int
-type Loc = V3 Int
-
-data Block = Dirt | Stone | Bedrock | Air
-    deriving (Eq, Show, Ord)
-
-data Game = Game {
-    _loc :: Loc,
-    _inventory :: Seq (Block,Int),
-    _area :: Array Loc Block,
-    _areaChanges :: [(Loc, Block)]
-}
-
-makeLenses ''Game
 
 maxDim = 10
 
@@ -104,11 +91,6 @@ placeBlock dir i g = let xyz = g^.loc + dir
                         then over areaChanges ((xyz, fst $ DS.index (g^.inventory) i):) $
                              removeItemAt i g
                         else g
-
-data Action =
-    Move Dir |
-    PlaceBlock Dir Int |
-    RemoveBlock Dir
 
 handleAction :: Action -> Game -> Game
 handleAction (Move dir) g = over loc (+ dir) g
