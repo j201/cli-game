@@ -17,7 +17,8 @@ library
   hs-source-dirs:      src
   exposed-modules:     Lib,
                        Game,
-                       Types
+                       Types,
+                       AreaGen
   build-depends:       base >= 4.7 && < 5,
                        microlens-platform,
                        vty,

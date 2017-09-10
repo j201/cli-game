@@ -4,48 +4,21 @@ module Game
 where
 
 import Types
+import AreaGen
 
 import Data.Array
 import Linear.V3
-import Linear.Vector ((^/))
 import Lens.Micro.Platform
 import Data.Sequence (Seq, (|>), (<|), (><))
 import qualified Data.Sequence as DS
-import qualified Math.Noise as MN
 import Control.Monad.Random
 
-maxDim = 10
-
-perlin :: RandomGen g => Rand g MN.Perlin
-perlin = do r <- getRandom
-            return $ MN.Perlin {
-                       MN.perlinFrequency = 1.0,
-                       MN.perlinLacunarity = 2.0,
-                       MN.perlinOctaves = 6,
-                       MN.perlinPersistence = 0.5,
-                       MN.perlinSeed = r
-                     }
-
-perlinAt :: Loc -> MN.Perlin -> Double
-perlinAt l p = let (V3 x y z) = fmap fromIntegral l ^/ fromIntegral maxDim
-               in case MN.getValue p (x,y,z)
-                    of (Just d) -> d -- I'm a bad widdle boy
-
-initArea :: MN.Perlin -> Array Loc Block
-initArea p = array (negate (V3 maxDim maxDim maxDim), V3 maxDim maxDim maxDim)
-                   [(V3 x y z, if z >= 0 then Air
-                               else if perlinAt (V3 x y z) p > 0.0 then Dirt
-                               else Stone) |
-                    x <- [-maxDim..maxDim],
-                    y <- [-maxDim..maxDim],
-                    z <- [-maxDim..maxDim]]
-
 initGame :: RandomGen g => Rand g Game
-initGame = do p <- perlin
+initGame = do a <- genArea FixedParams
               return $ Game {
                            _loc = (V3 0 0 0),
                            _inventory = DS.empty,
-                           _area = initArea p,
+                           _area = a,
                            _areaChanges = []
                        }
 

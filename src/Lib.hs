@@ -105,9 +105,10 @@ data Tile = Tile {
 makeLenses ''Tile
 
 blockTile :: Block -> Tile
-blockTile Dirt = Tile (hsl 0 1.0 0.5) '#'
-blockTile Stone = Tile (hsl 120 1.0 0.5) '#'
-blockTile Bedrock = Tile (hsl 120 1.0 0.5) 'X'
+blockTile Dirt = Tile (hsl 40 0.8 0.4) '#'
+blockTile Stone = Tile (hsl 220 0.0 0.4) '#'
+blockTile Bedrock = Tile (hsl 200 0.4 0.4) 'X'
+blockTile Grass = Tile (hsl 130 0.8 0.4) 'i'
 blockTile Air = Tile (hsl 0 0.0 0.0) ' '
 
 blockImageWith :: (Tile -> Tile) -> Block -> Image
@@ -119,12 +120,12 @@ blockImage = blockImageWith id
 
 playerImage = char (defAttr `withForeColor` white) '@'
 
-nextLower :: Array Loc Block -> Loc -> Block
+nextLower :: Area -> Loc -> Block
 nextLower a xyz = if (xyz^._z) == -maxDim
                   then Bedrock
                   else a ! (xyz + (V3 0 0 (-1)))
 
-nextLowerNonAir :: Array Loc Block -> Loc -> Block
+nextLowerNonAir :: Area -> Loc -> Block
 nextLowerNonAir a xyz = let b = a ! xyz
                             z = xyz^._z
                         in if b /= Air then b

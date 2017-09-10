@@ -9,14 +9,15 @@ import Lens.Micro.Platform
 
 type Dir = V3 Int
 type Loc = V3 Int
+type Area = Array Loc Block
 
-data Block = Dirt | Stone | Bedrock | Air
+data Block = Grass | Dirt | Stone | Bedrock | Air
     deriving (Eq, Show, Ord)
 
 data Game = Game {
     _loc :: Loc,
     _inventory :: Seq (Block,Int),
-    _area :: Array Loc Block,
+    _area :: Area,
     _areaChanges :: [(Loc, Block)]
 }
 
@@ -26,3 +27,12 @@ data Action =
     Move Dir |
     PlaceBlock Dir Int |
     RemoveBlock Dir
+
+data FixedParams = FixedParams
+data RandParams = RandParams
+
+data AreaParams = AreaParams FixedParams RandParams
+
+-- TODO: move into a 'consts' or 'settings' file?
+maxDim :: Int
+maxDim = 30
