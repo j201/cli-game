@@ -18,7 +18,8 @@ data Game = Game {
     _loc :: Loc,
     _inventory :: Seq (Block,Int),
     _area :: Area,
-    _areaChanges :: [(Loc, Block)]
+    _areaChanges :: [(Loc, Block)],
+    _creative :: Bool
 }
 
 makeLenses ''Game
@@ -26,7 +27,8 @@ makeLenses ''Game
 data Action =
     Move Dir |
     PlaceBlock Dir Int |
-    RemoveBlock Dir
+    RemoveBlock Dir |
+    ToggleCreative
 
 data FixedParams = FixedParams
 data RandParams = RandParams

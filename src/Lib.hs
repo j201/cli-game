@@ -66,6 +66,7 @@ handleEvent (EvKey (KChar c) mods) ui =
         (_,'\'',[]) -> case ui^.selected of
                         Just x -> set selected (Just $ (x+1) `mod` (DS.length (g^.inventory))) ui
                         Nothing -> ui
+        (_,'c',[]) -> act ToggleCreative
         (Normal,'r',[]) -> set inputMode Remove ui
         (Normal,'p',[]) -> set inputMode Place ui
         (Normal,_,[]) -> if isDirKey c && isValidDir g (keyDir c)
@@ -125,15 +126,19 @@ gameImageAt g xyz = if xyz == g^.loc
                     then playerImage
                     else let a = g^.area
                              b = a ! xyz
-                             b' = nextLower a xyz
+                             b' = nextLowerBlock a xyz
                          in if b /= Air then blockImage b
                             else if b' /= Air then blockImageWith (over foreColor (over _lightness (* 0.7))) b'
                             else blockImage Air
 
 status :: UIState -> Image
-status ui = string defAttr (show (ui^.game^.loc)) <->
-            string defAttr (show (ui^.game^.inventory)) <->
-            string defAttr (show (ui^.selected))
+status ui = foldl1 (<->) $
+            map (string defAttr) [
+                show $ ui^.game^.loc,
+                show $ ui^.game^.inventory,
+                show $ ui^.selected,
+                if ui^.game^.creative then "Creative" else "Non-creative"
+            ]
 
 render :: UIState -> Picture
 render ui = let g = ui^.game

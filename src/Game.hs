@@ -6,6 +6,8 @@ where
 import Types
 import AreaGen
 
+import Data.List (find)
+import Data.Maybe (fromMaybe)
 import Data.Array
 import Linear.V3
 import Lens.Micro.Platform
@@ -15,17 +17,25 @@ import Control.Monad.Random
 
 -- Area/Block utility functions
 
-nextLower :: Area -> Loc -> Block
-nextLower a xyz = if (xyz^._z) == -maxDim
+nextLowerBlock :: Area -> Loc -> Block
+nextLowerBlock a xyz = if (xyz^._z) == -maxDim
                   then Bedrock
                   else a ! (xyz + (V3 0 0 (-1)))
 
-nextLowerNonAir :: Area -> Loc -> Block
-nextLowerNonAir a xyz = let b = a ! xyz
-                            z = xyz^._z
-                        in if b /= Air then b
-                           else if z == -maxDim then Bedrock
-                           else nextLowerNonAir a (xyz + (V3 0 0 (-1)))
+nextLowerNonAirBlock :: Area -> Loc -> Block
+nextLowerNonAirBlock a xyz = let b = a ! xyz
+                                 z = xyz^._z
+                             in if b /= Air then b
+                                else if z == -maxDim then Bedrock
+                                else nextLowerNonAirBlock a (xyz + (V3 0 0 (-1)))
+
+-- Goes to the location that the player would end up at if they moved to this x/y loc from the given z level
+topNonAirLoc :: Area -> Loc -> Maybe Loc
+topNonAirLoc a l = let z = l^._z
+                       z' = if a ! l == Air
+                            then Just $ fromMaybe (-maxDim) $ find (\x -> a ! (set _z (x-1) l) /= Air) [z,z-1..(-maxDim)]
+                            else find (\x -> a ! (set _z x l) == Air) [z+1..maxDim]
+                   in fmap (\z -> set _z z l) z'
 
 -- Assumes that a starting point at (0,0,z) can be found
 initLoc :: Area -> Loc
@@ -36,10 +46,12 @@ initLoc a = V3 0 0 (if a ! (V3 0 0 0) == Air
 initGame :: RandomGen g => Rand g Game
 initGame = do a <- genArea FixedParams
               return $ Game {
-                           _loc = initLoc a,
+                           _loc = case topNonAirLoc a (V3 0 0 0) of
+                                    (Just a) -> a,
                            _inventory = DS.empty,
                            _area = a,
-                           _areaChanges = []
+                           _areaChanges = [],
+                           _creative = False
                        }
 
 inBounds :: Array Loc a -> Dir -> Bool
@@ -86,9 +98,16 @@ placeBlock dir i g = let xyz = g^.loc + dir
                         else g
 
 handleAction :: Action -> Game -> Game
-handleAction (Move dir) g = over loc (+ dir) g
+handleAction (Move dir) g = let l = g^.loc + dir
+                            in if g^.creative then set loc l g
+                               else case topNonAirLoc (g^.area) l of
+                                      Just l' -> if (l'^._z - l^._z) > 1
+                                                 then g
+                                                 else set loc l' g
+                                      Nothing -> g
 handleAction (PlaceBlock dir i) g = placeBlock dir i g
-handleAction (RemoveBlock dir) g = removeBlock dir g
+handleAction (RemoveBlock dir) g = removeBlock dir g & commitChanges & handleAction (Move 0) -- TODO: shows issue with commitChanges approach
+handleAction ToggleCreative g = over creative not g
 
 commitChanges :: Game -> Game
 commitChanges g = if g^.areaChanges == []
