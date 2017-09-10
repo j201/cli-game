@@ -118,19 +118,7 @@ blockImageWith f b = let Tile rgb c = f $ blockTile b
 blockImage :: Block -> Image
 blockImage = blockImageWith id
 
-playerImage = char (defAttr `withForeColor` white) '@'
-
-nextLower :: Area -> Loc -> Block
-nextLower a xyz = if (xyz^._z) == -maxDim
-                  then Bedrock
-                  else a ! (xyz + (V3 0 0 (-1)))
-
-nextLowerNonAir :: Area -> Loc -> Block
-nextLowerNonAir a xyz = let b = a ! xyz
-                            z = xyz^._z
-                        in if b /= Air then b
-                           else if z == -maxDim then Bedrock
-                           else nextLowerNonAir a (xyz + (V3 0 0 (-1)))
+playerImage = char (defAttr `withForeColor` (toVtyColor $ hsl 0 0.0 1.0)) '@'
 
 gameImageAt :: Game -> Loc -> Image
 gameImageAt g xyz = if xyz == g^.loc
@@ -139,8 +127,8 @@ gameImageAt g xyz = if xyz == g^.loc
                              b = a ! xyz
                              b' = nextLower a xyz
                          in if b /= Air then blockImage b
-                            else if b' /= Air then blockImage b'
-                            else blockImageWith (over foreColor (over _lightness (/ 2))) $ nextLowerNonAir a xyz
+                            else if b' /= Air then blockImageWith (over foreColor (over _lightness (* 0.7))) b'
+                            else blockImage Air
 
 status :: UIState -> Image
 status ui = string defAttr (show (ui^.game^.loc)) <->

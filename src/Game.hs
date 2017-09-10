@@ -13,10 +13,30 @@ import Data.Sequence (Seq, (|>), (<|), (><))
 import qualified Data.Sequence as DS
 import Control.Monad.Random
 
+-- Area/Block utility functions
+
+nextLower :: Area -> Loc -> Block
+nextLower a xyz = if (xyz^._z) == -maxDim
+                  then Bedrock
+                  else a ! (xyz + (V3 0 0 (-1)))
+
+nextLowerNonAir :: Area -> Loc -> Block
+nextLowerNonAir a xyz = let b = a ! xyz
+                            z = xyz^._z
+                        in if b /= Air then b
+                           else if z == -maxDim then Bedrock
+                           else nextLowerNonAir a (xyz + (V3 0 0 (-1)))
+
+-- Assumes that a starting point at (0,0,z) can be found
+initLoc :: Area -> Loc
+initLoc a = V3 0 0 (if a ! (V3 0 0 0) == Air
+                    then head $ filter (\z -> a ! (V3 0 0 (z-1)) /= Air) [0,-1..]
+                    else head $ filter (\z -> a ! (V3 0 0 z) == Air) [1..])
+
 initGame :: RandomGen g => Rand g Game
 initGame = do a <- genArea FixedParams
               return $ Game {
-                           _loc = (V3 0 0 0),
+                           _loc = initLoc a,
                            _inventory = DS.empty,
                            _area = a,
                            _areaChanges = []
