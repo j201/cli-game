@@ -8,7 +8,10 @@ import AreaGen
 
 import Data.List (find)
 import Data.Maybe (fromMaybe)
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import Data.Array
+import Linear.V2
 import Linear.V3
 import Lens.Micro.Platform
 import Data.Sequence (Seq, (|>), (<|), (><))
@@ -44,13 +47,15 @@ initLoc a = V3 0 0 (if a ! (V3 0 0 0) == Air
                     else head $ filter (\z -> a ! (V3 0 0 z) == Air) [1..])
 
 initGame :: RandomGen g => Rand g Game
-initGame = do a <- genArea FixedParams
+initGame = do (ai, a) <- genArea Map.empty (V2 0 0)
               return $ Game {
                            _loc = case topNonAirLoc a (V3 0 0 0) of
                                     (Just a) -> a,
                            _inventory = DS.empty,
                            _area = a,
                            _areaChanges = [],
+                           _currentArea = ai,
+                           _allAreas = Map.empty,
                            _creative = False
                        }
 

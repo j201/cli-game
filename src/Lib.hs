@@ -8,6 +8,9 @@ import Types
 import Game
 
 import Data.Array
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+import Linear.V2
 import Linear.V3
 import Lens.Micro.Platform
 import Graphics.Vty

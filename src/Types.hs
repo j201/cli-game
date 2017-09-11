@@ -3,21 +3,50 @@
 module Types where
 
 import Data.Array
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+import Linear.V2
 import Linear.V3
 import Data.Sequence (Seq, (|>), (<|), (><))
 import Lens.Micro.Platform
 
 type Dir = V3 Int
 type Loc = V3 Int
-type Area = Array Loc Block
+
+data Biome =
+    HotDesert |
+    DryShrubland |
+    ArcticDesert |
+    Tundra |
+    TropicalForest |
+    TropicalRainforest |
+    TemperateForest |
+    TemperateRainforest |
+    BorealForest |
+    TropicalGrassland |
+    TemperateGrassland |
+    TemperateWetland |
+    TropicalWetland |
+    Mountains
 
 data Block = Grass | Dirt | Stone | Bedrock | Air
     deriving (Eq, Show, Ord)
+
+type Area = Array Loc Block
+
+data AreaInfo = AreaInfo {
+    _biome :: Biome,
+    _areaLoc :: V2 Int
+}
+
+makeLenses ''AreaInfo
 
 data Game = Game {
     _loc :: Loc,
     _inventory :: Seq (Block,Int),
     _area :: Area,
+    _allAreas :: Map (V2 Int) AreaInfo,
+    _currentArea :: AreaInfo,
     _areaChanges :: [(Loc, Block)],
     _creative :: Bool
 }
@@ -29,11 +58,6 @@ data Action =
     PlaceBlock Dir Int |
     RemoveBlock Dir |
     ToggleCreative
-
-data FixedParams = FixedParams
-data RandParams = RandParams
-
-data AreaParams = AreaParams FixedParams RandParams
 
 -- TODO: move into a 'consts' or 'settings' file?
 maxDim :: Int
