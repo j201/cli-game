@@ -37,3 +37,22 @@ Biomes are chosen based on:
 	- Precipitation
 	- Type
 	- Features
+
+## TODO
+
+(Roughly in order)
+
+- Allow for limited UI view and a larger area, with scrolling
+- Information about tiles, like DF's k
+- Numeric and . repeating à la vim.
+- Shift+WASD movement
+- Vegetation
+- Multiple areas
+- Saving and loading
+- Moving areas to disk when not in use
+- Crafting
+- AI units
+	- Animals
+	- Monsters
+	- NPCs
+- Cities
