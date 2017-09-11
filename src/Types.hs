@@ -29,7 +29,23 @@ data Biome =
     TropicalWetland |
     Mountains
 
-data Block = Grass | Dirt | Stone | Bedrock | Air
+data TreePart = Trunk | Leaf | Root
+    deriving (Eq, Show, Ord)
+
+data TreeType =
+    Birch |
+    Elm |
+    Maple |
+    Oak
+    deriving (Eq, Show, Ord)
+
+data Block =
+    Grass |
+    Dirt |
+    Stone |
+    Bedrock |
+    Air |
+    Tree TreeType TreePart
     deriving (Eq, Show, Ord)
 
 type Area = Array Loc Block

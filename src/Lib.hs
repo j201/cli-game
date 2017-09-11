@@ -114,6 +114,8 @@ blockTile Stone = Tile (hsl 220 0.0 0.4) '#'
 blockTile Bedrock = Tile (hsl 200 0.4 0.4) 'X'
 blockTile Grass = Tile (hsl 130 0.8 0.4) 'i'
 blockTile Air = Tile (hsl 0 0.0 0.0) ' '
+blockTile (Tree _ Leaf) = Tile (hsl 120 0.8 0.4) 'l'
+blockTile (Tree _ Trunk) = Tile (hsl 40 0.8 0.4) 'O'
 
 blockImageWith :: (Tile -> Tile) -> Block -> Image
 blockImageWith f b = let Tile rgb c = f $ blockTile b

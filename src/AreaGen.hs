@@ -5,11 +5,13 @@ import Types
 import Data.Array
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import Linear.Metric (norm)
 import Linear.V2
 import Linear.V3
 import Control.Monad.Random
 import qualified Math.Noise as MN
 import Linear.Vector ((^/))
+import Lens.Micro.Platform
 
 genParams :: RandomGen g => Map (V2 Int) AreaInfo -> (V2 Int) -> Rand g AreaInfo
 genParams ais l = return $ AreaInfo TemperateForest l
@@ -37,6 +39,10 @@ genArea :: RandomGen g => Map (V2 Int) AreaInfo -> (V2 Int) -> Rand g (AreaInfo,
 genArea ais l = do pCave <- perlin
                    pHeight <- perlin
                    ai <- genParams ais l
+                   tps <- treePlaces 0.01 2.0
+                   -- TODO: offset trees by topLevel
+                   ts <- fmap (cleanFeature . concat) $ mapM (\(V2 x y) -> fmap (shiftFeature (V3 x y 0)) (genTree Birch))
+                                                             tps
                    return $ (ai,
                              array (negate (V3 maxDim maxDim maxDim), V3 maxDim maxDim maxDim)
                                    [(V3 x y z, let topLevel = truncate (5 * perlinAt (V3 x y 0) pHeight)
@@ -48,7 +54,37 @@ genArea ais l = do pCave <- perlin
                                                   else Stone) |
                                     x <- [-maxDim..maxDim],
                                     y <- [-maxDim..maxDim],
-                                    z <- [-maxDim..maxDim]])
+                                    z <- [-maxDim..maxDim]]
+                             // ts)
 
 addArea :: RandomGen g => Game -> (V2 Int) -> Rand g Game
 addArea = undefined
+
+-- TODO: naïve implementation - O(n²)
+-- TODO: could run infinitely
+-- density in trees/tile
+treePlaces :: RandomGen g => Double -> Double -> Rand g [V2 Int]
+treePlaces density minDist = treePlaces' (floor $ density * fromIntegral (maxDim*maxDim)) minDist (return [])
+    where treePlaces' :: RandomGen g => Int -> Double -> Rand g [V2 Int] -> Rand g [V2 Int]
+          treePlaces' 0 md ts = ts
+          treePlaces' n md ts = do x <- getRandomR (-maxDim,maxDim)
+                                   y <- getRandomR (-maxDim,maxDim)
+                                   ts' <- ts
+                                   if any (\t -> (norm $ fmap fromIntegral $ V2 x y - t) < minDist) ts'
+                                   then treePlaces' n md ts
+                                   else treePlaces' (n-1) md (return $ V2 x y : ts' )
+
+shiftFeature :: Loc -> [(Loc, Block)] -> [(Loc, Block)]
+shiftFeature l = map (\(l',b) -> (l'+l,b))
+
+cleanFeature :: [(Loc, Block)] -> [(Loc, Block)]
+cleanFeature = filter (\(l,_) -> (l^._x) >= (-maxDim) && (l^._x) <= maxDim &&
+                                 (l^._y) >= (-maxDim) && (l^._x) <= maxDim &&
+                                 (l^._z) >= (-maxDim) && (l^._z) <= maxDim)
+
+genTree :: RandomGen g => TreeType -> Rand g [(Loc, Block)]
+genTree Birch = do h <- getRandomR (2, 6)
+                   return $ (V3 0 0 0, Tree Birch Trunk) :
+                            (V3 0 0 h, Tree Birch Leaf) :
+                            [(V3 x y z, Tree Birch Leaf) | x <- [-1..1], y <- [-1..1], z <- [1..(h-1)]] ++
+                            map (\z -> (V3 0 0 z, Tree Birch Trunk)) [0..(h-1)]
