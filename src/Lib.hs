@@ -15,7 +15,7 @@ import Linear.V3
 import Lens.Micro.Platform
 import Graphics.Vty
 import qualified Data.Sequence as DS
-import Control.Monad.Random (evalRand, getStdGen)
+import Control.Monad.Random (evalRand, getStdGen, mkStdGen)
 import Data.Colour.RGBSpace
 import Data.Colour.RGBSpace.HSL
 import System.Environment (setEnv)
@@ -159,7 +159,7 @@ runGame vty ui = do
     else runGame vty (handleEvent e ui)
 
 initUIState :: IO UIState
-initUIState = do g <- getStdGen
+initUIState = do let g = mkStdGen 3 -- g <- getStdGen
                  return $ UIState {
                               _selected = Nothing,
                               _game = evalRand initGame g,
