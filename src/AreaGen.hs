@@ -35,6 +35,12 @@ perlinAt l p = let (V3 x y z) = fmap fromIntegral l ^/ fromIntegral maxDim
                in case MN.getValue p (x,y,z)
                     of (Just d) -> d -- I'm a bad widdle boy
 
+lookForBug (V3 x y z) = if x < (-maxDim) || x > maxDim ||
+                           y < (-maxDim) || y > maxDim ||
+                           z < (-maxDim) || z > maxDim
+                        then error $ "Oh noes " ++ show (V3 x y z)
+                        else V3 x y z
+
 genArea :: RandomGen g => Map (V2 Int) AreaInfo -> (V2 Int) -> Rand g (AreaInfo, Area)
 genArea ais l = do pCave <- perlin
                    pHeight <- perlin
@@ -45,7 +51,8 @@ genArea ais l = do pCave <- perlin
                                                              tps
                    return $ (ai,
                              array (negate (V3 maxDim maxDim maxDim), V3 maxDim maxDim maxDim)
-                                   [(V3 x y z, let topLevel = truncate (5 * perlinAt (V3 x y 0) pHeight)
+                                   [(lookForBug $
+                                     V3 x y z, let topLevel = truncate (5 * perlinAt (V3 x y 0) pHeight)
                                                    nDirtBlocks = floor (2 * (perlinAt (V3 x y maxDim) pHeight + 1.0))
                                                in if z > topLevel then Air
                                                   else if z == topLevel then Grass
@@ -79,7 +86,7 @@ shiftFeature l = map (\(l',b) -> (l'+l,b))
 
 cleanFeature :: [(Loc, Block)] -> [(Loc, Block)]
 cleanFeature = filter (\(l,_) -> (l^._x) >= (-maxDim) && (l^._x) <= maxDim &&
-                                 (l^._y) >= (-maxDim) && (l^._x) <= maxDim &&
+                                 (l^._y) >= (-maxDim) && (l^._y) <= maxDim &&
                                  (l^._z) >= (-maxDim) && (l^._z) <= maxDim)
 
 genTree :: RandomGen g => TreeType -> Rand g [(Loc, Block)]

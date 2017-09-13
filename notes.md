@@ -44,6 +44,7 @@ Biomes are chosen based on:
 
 - Allow for limited UI view and a larger area, with scrolling
 - Information about tiles, like DF's k
+	- Integrate with 'look around' mode
 - Numeric and . repeating à la vim.
 - Shift+WASD movement
 - Vegetation
