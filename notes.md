@@ -47,13 +47,21 @@ Biomes are chosen based on:
 	- Integrate with 'look around' mode
 - Numeric and . repeating à la vim.
 - Shift+WASD movement
+- Key reference window
 - Vegetation
 - Multiple areas
+- Area names
 - Saving and loading
+	- With versioning
 - Moving areas to disk when not in use
+- Read colours from disk
 - Crafting
+	- Tools
+	- Weapons/armour
+	- Mechanical/electrical
 - AI units
 	- Animals
 	- Monsters
 	- NPCs
+- Ores/gems
 - Cities
