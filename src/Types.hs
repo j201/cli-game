@@ -78,3 +78,6 @@ data Action =
 -- TODO: move into a 'consts' or 'settings' file?
 maxDim :: Int
 maxDim = 30
+
+lookMaxZDist :: Int
+lookMaxZDist = 5

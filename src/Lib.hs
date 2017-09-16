@@ -20,13 +20,14 @@ import Data.Colour.RGBSpace
 import Data.Colour.RGBSpace.HSL
 import System.Environment (setEnv)
 
-data InputMode = Normal | Remove | Place
+data InputMode = Normal | Remove | Place | Look
     deriving (Eq, Show)
 
 data UIState = UIState {
     _game :: Game,
     _selected :: Maybe Int,
-    _inputMode :: InputMode
+    _inputMode :: InputMode,
+    _lookLoc :: Loc
 }
 
 makeLenses ''UIState
@@ -58,6 +59,13 @@ correctSelected ui = let s = ui^.selected
                                      then set selected (Just 0) ui
                                      else ui
 
+isValidLook :: UIState -> Dir -> Bool
+isValidLook ui dir = let playerZ = ui^.game^.loc^._z
+                         newLoc = (ui^.lookLoc) + dir
+                         lookZ = view _z $ newLoc
+                     in inBounds (ui^.game^.area) newLoc &&
+                        abs (playerZ - lookZ) <= lookMaxZDist
+
 handleEvent :: Event -> UIState -> UIState
 handleEvent (EvKey (KChar c) mods) ui =
     let g = ui^.game
@@ -70,6 +78,8 @@ handleEvent (EvKey (KChar c) mods) ui =
                         Just x -> set selected (Just $ (x+1) `mod` (DS.length (g^.inventory))) ui
                         Nothing -> ui
         (_,'c',[]) -> act ToggleCreative
+        (Normal,'l',[]) -> set lookLoc (ui^.game^.loc) $
+                           set inputMode Look ui
         (Normal,'r',[]) -> set inputMode Remove ui
         (Normal,'p',[]) -> set inputMode Place ui
         (Normal,_,[]) -> if isDirKey c && isValidDir g (keyDir c)
@@ -85,6 +95,10 @@ handleEvent (EvKey (KChar c) mods) ui =
                            Just i -> correctSelected $ act $ PlaceBlock (keyDir c) i
                            Nothing -> ui
                         else ui
+        (Look,'l',[]) -> set inputMode Normal ui
+        (Look,_,[]) -> if isDirKey c && isValidLook ui (keyDir c)
+                       then over lookLoc (+ keyDir c) ui
+                       else ui
         _ -> ui
 handleEvent _ ui = ui
 
@@ -126,9 +140,14 @@ blockImage = blockImageWith id
 
 playerImage = char (defAttr `withForeColor` (toVtyColor $ hsl 0 0.0 1.0)) '@'
 
-gameImageAt :: Game -> Loc -> Image
-gameImageAt g xyz = if xyz == g^.loc
-                    then playerImage
+lookImage = char (defAttr `withForeColor` (toVtyColor $ hsl 90 0.8 0.7)) '?'
+
+imageAt :: UIState -> Loc -> Image
+imageAt ui xyz = let g = ui^.game
+                 in if ui^.inputMode == Look && xyz == ui^.lookLoc
+                       then lookImage
+                    else if xyz == g^.loc
+                       then playerImage
                     else let a = g^.area
                              b = a ! xyz
                              b' = nextLowerBlock a xyz
@@ -140,6 +159,7 @@ status :: UIState -> Image
 status ui = foldl1 (<->) $
             map (string defAttr) [
                 show $ ui^.game^.loc,
+                show $ ui^.lookLoc,
                 show $ ui^.game^.inventory,
                 show $ ui^.selected,
                 if ui^.game^.creative then "Creative" else "Non-creative"
@@ -147,8 +167,14 @@ status ui = foldl1 (<->) $
 
 render :: UIState -> Picture
 render ui = let g = ui^.game
-                z = view (loc . _z) g
-            in picForImage $ (<|> status ui) $ vertCat $ map horizCat $ [[gameImageAt g (V3 x y z) | y <- [-maxDim..maxDim]] | x <- [-maxDim..maxDim]]
+                z = if ui^.inputMode == Look
+                    then ui^.lookLoc^._z
+                    else g^.loc^._z
+            in picForImage $
+               (<|> status ui) $
+               vertCat $
+               map horizCat $
+               [[imageAt ui (V3 x y z) | y <- [-maxDim..maxDim]] | x <- [-maxDim..maxDim]]
 
 runGame :: Vty -> UIState -> IO ()
 runGame vty ui = do
@@ -159,11 +185,12 @@ runGame vty ui = do
     else runGame vty (handleEvent e ui)
 
 initUIState :: IO UIState
-initUIState = do let g = mkStdGen 3 -- g <- getStdGen
+initUIState = do g <- getStdGen
                  return $ UIState {
                               _selected = Nothing,
                               _game = evalRand initGame g,
-                              _inputMode = Normal
+                              _inputMode = Normal,
+                              _lookLoc = V3 0 0 0
                           }
 
 run = do
