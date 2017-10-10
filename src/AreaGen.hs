@@ -35,28 +35,21 @@ perlinAt l p = let (V3 x y z) = fmap fromIntegral l ^/ fromIntegral maxDim
                in case MN.getValue p (x,y,z)
                     of (Just d) -> d -- I'm a bad widdle boy
 
-lookForBug (V3 x y z) = if x < (-maxDim) || x > maxDim ||
-                           y < (-maxDim) || y > maxDim ||
-                           z < (-maxDim) || z > maxDim
-                        then error $ "Oh noes " ++ show (V3 x y z)
-                        else V3 x y z
-
 genArea :: RandomGen g => Map (V2 Int) AreaInfo -> (V2 Int) -> Rand g (AreaInfo, Area)
 genArea ais l = do pCave <- perlin
                    pHeight <- perlin
+                   let topLevel x y = truncate (5 * perlinAt (V3 x y 0) pHeight)
                    ai <- genParams ais l
                    tps <- treePlaces 0.01 2.0
-                   -- TODO: offset trees by topLevel
-                   ts <- fmap (cleanFeature . concat) $ mapM (\(V2 x y) -> fmap (shiftFeature (V3 x y 0)) (genTree Birch))
+                   ts <- fmap (cleanFeature . concat) $ mapM (\(V2 x y) -> fmap (shiftFeature (V3 x y (topLevel x y)))
+                                                                                (genTree Birch))
                                                              tps
                    return $ (ai,
                              array (negate (V3 maxDim maxDim maxDim), V3 maxDim maxDim maxDim)
-                                   [(lookForBug $
-                                     V3 x y z, let topLevel = truncate (5 * perlinAt (V3 x y 0) pHeight)
-                                                   nDirtBlocks = floor (2 * (perlinAt (V3 x y maxDim) pHeight + 1.0))
-                                               in if z > topLevel then Air
-                                                  else if z == topLevel then Grass
-                                                  else if z >= topLevel - nDirtBlocks then Dirt
+                                   [(V3 x y z, let nDirtBlocks = floor (2 * (perlinAt (V3 x y maxDim) pHeight + 1.0))
+                                               in if z > topLevel x y then Air
+                                                  else if z == topLevel x y then Grass
+                                                  else if z >= topLevel x y - nDirtBlocks then Dirt
                                                   else if perlinAt (V3 x y z) pCave < (-0.4) then Air
                                                   else Stone) |
                                     x <- [-maxDim..maxDim],
