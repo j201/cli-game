@@ -27,7 +27,8 @@ data UIState = UIState {
     _game :: Game,
     _selected :: Maybe Int,
     _inputMode :: InputMode,
-    _lookLoc :: Loc
+    _lookLoc :: Loc,
+    _dr :: DisplayRegion
 }
 
 makeLenses ''UIState
@@ -36,10 +37,10 @@ isDirKey :: Char -> Bool
 isDirKey c = c == 'w' || c == 'a' || c == 's' || c == 'd' || c == 'q' || c == 'e'
 
 keyDir :: Char -> Dir
-keyDir 'w' = V3 (-1) 0 0
-keyDir 'a' = V3 0 (-1) 0
-keyDir 's' = V3 1 0 0
-keyDir 'd' = V3 0 1 0
+keyDir 'w' = V3 0 1 0
+keyDir 'a' = V3 (-1) 0 0
+keyDir 's' = V3 0 (-1) 0
+keyDir 'd' = V3 1 0 0
 keyDir 'q' = V3 0 0 (-1)
 keyDir 'e' = V3 0 0 1
 
@@ -162,40 +163,56 @@ status ui = foldl1 (<->) $
                 show $ ui^.lookLoc,
                 show $ ui^.game^.inventory,
                 show $ ui^.selected,
+                show $ ui^.dr,
+                show $ drawRange (ui^.dr^._2) (ui^.game^.loc^._y),
                 if ui^.game^.creative then "Creative" else "Non-creative"
             ]
 
+-- The range of values to draw in one x or y dimension
+drawRange :: Int -> Int -> [Int]
+drawRange w x = let vision = (w-1) `div` 2
+                in if x - vision < (-maxDim) then [-maxDim .. -maxDim + w - 1]
+                   else if x - vision + w - 1 > maxDim then [maxDim - w + 1 .. maxDim]
+                   else [x - vision .. x - vision + w - 1]
+
 render :: UIState -> Picture
 render ui = let g = ui^.game
-                z = if ui^.inputMode == Look
-                    then ui^.lookLoc^._z
-                    else g^.loc^._z
+                centre = if ui^.inputMode == Look
+                         then ui^.lookLoc
+                         else g^.loc
+                (w,h) = ui^.dr
             in picForImage $
                (<|> status ui) $
-               vertCat $
+               (vertCat . reverse) $
                map horizCat $
-               [[imageAt ui (V3 x y z) | y <- [-maxDim..maxDim]] | x <- [-maxDim..maxDim]]
+               [[imageAt ui (V3 x y (centre^._z)) |
+                 x <- drawRange w (centre^._x)] |
+                y <- drawRange h (centre^._y)]
 
 runGame :: Vty -> UIState -> IO ()
 runGame vty ui = do
-    update vty (render ui)
+    update vty $ render ui
     e <- nextEvent vty
-    if e == EvKey KEsc []
-    then shutdown vty
-    else runGame vty (handleEvent e ui)
+    case e of
+        EvKey KEsc [] -> shutdown vty
+        EvResize w h -> runGame vty $ set dr (min (2*maxDim+1) w, min (2*maxDim+1) h) ui
+        _ -> runGame vty (handleEvent e ui)
 
-initUIState :: IO UIState
-initUIState = do g <- getStdGen
-                 return $ UIState {
-                              _selected = Nothing,
-                              _game = evalRand initGame g,
-                              _inputMode = Normal,
-                              _lookLoc = V3 0 0 0
-                          }
+initUIState :: DisplayRegion -> IO UIState
+initUIState dr = do g <- getStdGen
+                    let (w,h) = dr
+                    return $ UIState {
+                                 _selected = Nothing,
+                                 _game = evalRand initGame g,
+                                 _inputMode = Normal,
+                                 _lookLoc = V3 0 0 0,
+                                 _dr = (min (2*maxDim+1) w, min (2*maxDim+1) h)
+                             }
 
 run = do
     setEnv "TERM" "xterm-256color"
     cfg <- standardIOConfig
     vty <- mkVty cfg
-    ui <- initUIState
+    dr <- outputForConfig cfg >>= displayBounds
+    ui <- initUIState dr
     runGame vty ui
