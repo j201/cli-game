@@ -15,7 +15,7 @@ import Linear.V3
 import Lens.Micro.Platform
 import Graphics.Vty
 import qualified Data.Sequence as DS
-import Control.Monad.Random (evalRand, getStdGen, mkStdGen)
+import Control.Monad.Random
 import Data.Colour.RGBSpace
 import Data.Colour.RGBSpace.HSL
 import System.Environment (setEnv)
@@ -165,7 +165,8 @@ status ui = foldl1 (<->) $
                 show $ ui^.selected,
                 show $ ui^.dr,
                 show $ drawRange (ui^.dr^._2) (ui^.game^.loc^._y),
-                if ui^.game^.creative then "Creative" else "Non-creative"
+                if ui^.game^.creative then "Creative" else "Non-creative",
+                show $ ui^.game^.seed
             ]
 
 -- The range of values to draw in one x or y dimension
@@ -199,11 +200,11 @@ runGame vty ui = do
         _ -> runGame vty (handleEvent e ui)
 
 initUIState :: DisplayRegion -> IO UIState
-initUIState dr = do g <- getStdGen
+initUIState dr = do seed <- getStdRandom random
                     let (w,h) = dr
                     return $ UIState {
                                  _selected = Nothing,
-                                 _game = evalRand initGame g,
+                                 _game = initGame seed,
                                  _inputMode = Normal,
                                  _lookLoc = V3 0 0 0,
                                  _dr = (min (2*maxDim+1) w, min (2*maxDim+1) h)

@@ -64,7 +64,8 @@ data Game = Game {
     _allAreas :: Map (V2 Int) AreaInfo,
     _currentArea :: AreaInfo,
     _areaChanges :: [(Loc, Block)],
-    _creative :: Bool
+    _creative :: Bool,
+    _seed :: Int
 }
 
 makeLenses ''Game

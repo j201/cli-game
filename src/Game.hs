@@ -46,18 +46,20 @@ initLoc a = V3 0 0 (if a ! (V3 0 0 0) == Air
                     then head $ filter (\z -> a ! (V3 0 0 (z-1)) /= Air) [0,-1..]
                     else head $ filter (\z -> a ! (V3 0 0 z) == Air) [1..])
 
-initGame :: RandomGen g => Rand g Game
-initGame = do (ai, a) <- genArea Map.empty (V2 0 0)
-              return $ Game {
-                           _loc = case topNonAirLoc a (V3 0 0 0) of
-                                    (Just a) -> a,
-                           _inventory = DS.empty,
-                           _area = a,
-                           _areaChanges = [],
-                           _currentArea = ai,
-                           _allAreas = Map.empty,
-                           _creative = False
-                       }
+initGame :: Int -> Game
+initGame seed = let g = mkStdGen seed
+                    (ai, a) = flip evalRand g $ genArea Map.empty (V2 0 0)
+                in Game {
+                       _loc = case topNonAirLoc a (V3 0 0 0) of
+                                (Just a) -> a,
+                       _inventory = DS.empty,
+                       _area = a,
+                       _areaChanges = [],
+                       _currentArea = ai,
+                       _allAreas = Map.empty,
+                       _creative = False,
+                       _seed = seed
+                   }
 
 inBounds :: Array Loc a -> Dir -> Bool
 inBounds a xyz = let (lb,ub) = bounds a
