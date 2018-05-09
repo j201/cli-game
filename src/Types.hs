@@ -61,8 +61,8 @@ data Game = Game {
     _loc :: Loc,
     _inventory :: Seq (Block,Int),
     _area :: Area,
-    _allAreas :: Map (V2 Int) AreaInfo,
-    _currentArea :: AreaInfo,
+    _allAreas :: Map (V2 Int) (AreaInfo, Area),
+    _areaInfo :: AreaInfo,
     _areaChanges :: [(Loc, Block)],
     _creative :: Bool,
     _seed :: Int

@@ -13,7 +13,7 @@ import qualified Math.Noise as MN
 import Linear.Vector ((^/))
 import Lens.Micro.Platform
 
-genParams :: RandomGen g => Map (V2 Int) AreaInfo -> (V2 Int) -> Rand g AreaInfo
+genParams :: RandomGen g => Map (V2 Int) (AreaInfo, Area) -> (V2 Int) -> Rand g AreaInfo
 genParams ais l = return $ AreaInfo TemperateForest l
 
 perlin :: RandomGen g => Rand g MN.Perlin
@@ -35,30 +35,37 @@ perlinAt l p = let (V3 x y z) = fmap fromIntegral l ^/ fromIntegral maxDim
                in case MN.getValue p (x,y,z)
                     of (Just d) -> d -- I'm a bad widdle boy
 
-genArea :: RandomGen g => Map (V2 Int) AreaInfo -> (V2 Int) -> Rand g (AreaInfo, Area)
-genArea ais l = do pCave <- perlin
-                   pHeight <- perlin
-                   let topLevel x y = truncate (5 * perlinAt (V3 x y 0) pHeight)
-                   ai <- genParams ais l
-                   tps <- treePlaces 0.01 2.0
-                   ts <- fmap (cleanFeature . concat) $ mapM (\(V2 x y) -> fmap (shiftFeature (V3 x y (topLevel x y)))
-                                                                                (genTree Birch))
-                                                             tps
-                   return $ (ai,
-                             array (negate (V3 maxDim maxDim maxDim), V3 maxDim maxDim maxDim)
-                                   [(V3 x y z, let nDirtBlocks = floor (2 * (perlinAt (V3 x y maxDim) pHeight + 1.0))
-                                               in if z > topLevel x y then Air
-                                                  else if z == topLevel x y then Grass
-                                                  else if z >= topLevel x y - nDirtBlocks then Dirt
-                                                  else if perlinAt (V3 x y z) pCave < (-0.4) then Air
-                                                  else Stone) |
-                                    x <- [-maxDim..maxDim],
-                                    y <- [-maxDim..maxDim],
-                                    z <- [-maxDim..maxDim]]
-                             // ts)
+randFromSeed :: Int -> Rand StdGen a -> a
+randFromSeed s r = evalRand r $ mkStdGen s
 
-addArea :: RandomGen g => Game -> (V2 Int) -> Rand g Game
-addArea = undefined
+-- Maps each area location to a distinct seed
+areaSeed :: Int -> V2 Int -> Int
+areaSeed seed l = seed + pair (toNat (l^._x)) (toNat (l^._y))
+    where toNat x = if x < 0 then 2*(-x)-1 else 2*x
+          pair x y = (x+y) * (x+y+1) `div` 2 + y
+
+genArea :: Map (V2 Int) (AreaInfo, Area) -> (V2 Int) -> Int -> (AreaInfo, Area)
+genArea ais l seed = randFromSeed (areaSeed seed l) randArea
+    where randArea = do pCave <- perlin
+                        pHeight <- perlin
+                        let topLevel x y = truncate (5 * perlinAt (V3 x y 0) pHeight)
+                        ai <- genParams ais l
+                        tps <- treePlaces 0.01 2.0
+                        ts <- fmap (cleanFeature . concat) $ mapM (\(V2 x y) -> fmap (shiftFeature (V3 x y (topLevel x y)))
+                                                                                     (genTree Birch))
+                                                                  tps
+                        return $ (ai,
+                                  array (negate (V3 maxDim maxDim maxDim), V3 maxDim maxDim maxDim)
+                                        [(V3 x y z, let nDirtBlocks = floor (2 * (perlinAt (V3 x y maxDim) pHeight + 1.0))
+                                                    in if z > topLevel x y then Air
+                                                       else if z == topLevel x y then Grass
+                                                       else if z >= topLevel x y - nDirtBlocks then Dirt
+                                                       else if perlinAt (V3 x y z) pCave < (-0.4) then Air
+                                                       else Stone) |
+                                         x <- [-maxDim..maxDim],
+                                         y <- [-maxDim..maxDim],
+                                         z <- [-maxDim..maxDim]]
+                                  // ts)
 
 -- TODO: naïve implementation - O(n²)
 -- TODO: could run infinitely

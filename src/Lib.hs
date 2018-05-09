@@ -83,7 +83,7 @@ handleEvent (EvKey (KChar c) mods) ui =
                            set inputMode Look ui
         (Normal,'r',[]) -> set inputMode Remove ui
         (Normal,'p',[]) -> set inputMode Place ui
-        (Normal,_,[]) -> if isDirKey c && isValidDir g (keyDir c)
+        (Normal,_,[]) -> if isDirKey c
                          then act $ Move (keyDir c)
                          else ui
         (Remove,_,[]) -> set inputMode Normal $

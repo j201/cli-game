@@ -47,15 +47,14 @@ initLoc a = V3 0 0 (if a ! (V3 0 0 0) == Air
                     else head $ filter (\z -> a ! (V3 0 0 z) == Air) [1..])
 
 initGame :: Int -> Game
-initGame seed = let g = mkStdGen seed
-                    (ai, a) = flip evalRand g $ genArea Map.empty (V2 0 0)
+initGame seed = let (ai, a) = genArea Map.empty (V2 0 0) seed
                 in Game {
                        _loc = case topNonAirLoc a (V3 0 0 0) of
                                 (Just a) -> a,
                        _inventory = DS.empty,
                        _area = a,
                        _areaChanges = [],
-                       _currentArea = ai,
+                       _areaInfo = ai,
                        _allAreas = Map.empty,
                        _creative = False,
                        _seed = seed
@@ -104,9 +103,28 @@ placeBlock dir i g = let xyz = g^.loc + dir
                              removeItemAt i g
                         else g
 
+moveArea :: V2 Int -> Game -> Game
+moveArea dir g = let newAreaLoc = g^.areaInfo^.areaLoc + dir
+                     (newAreaInfo,newArea) =
+                        Map.findWithDefault (genArea (g^.allAreas) newAreaLoc (g^.seed))
+                                            newAreaLoc
+                                            (g^.allAreas)
+                     newLoc = (\a b -> if b == 0 then a else -b*maxDim) <$> g^.loc
+                                                                        <*> (V3 (dir^._x) (dir^._y) 0)
+                  in g & area .~ newArea
+                       & areaInfo .~ newAreaInfo
+                       & loc .~ newLoc
+                       & allAreas %~ Map.insert (g^.areaInfo^.areaLoc) (g^.areaInfo,g^.area)
+
 handleAction :: Action -> Game -> Game
 handleAction (Move dir) g = let l = g^.loc + dir
-                            in if g^.creative then set loc l g
+                            in if not $ inBounds (g^.area) l
+                               then if dir^._z == 0
+                                    then moveArea (fmap signum $ V2 (dir^._x) (dir^._y))
+                                                  g
+                                    else g
+                               else if g^.creative
+                               then set loc l g
                                else case topNonAirLoc (g^.area) l of
                                       Just l' -> if (l'^._z - l^._z) > 1
                                                  then g
