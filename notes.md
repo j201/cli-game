@@ -42,19 +42,19 @@ Biomes are chosen based on:
 
 (Roughly in order)
 
-- Allow for limited UI view and a larger area, with scrolling
 - Information about tiles, like DF's k
 	- Integrate with 'look around' mode
 - Numeric and . repeating à la vim.
 - Shift+WASD movement
 - Key reference window
 - Vegetation
-- Multiple areas
 - Area names
 - Saving and loading
 	- With versioning
 - Moving areas to disk when not in use
-- Read colours from disk
+- Options
+	- UI layout
+	- Colours
 - Crafting
 	- Tools
 	- Weapons/armour
