@@ -129,6 +129,7 @@ blockTile Stone = Tile (hsl 220 0.0 0.4) '#'
 blockTile Bedrock = Tile (hsl 200 0.4 0.4) 'X'
 blockTile Grass = Tile (hsl 130 0.8 0.4) 'i'
 blockTile Air = Tile (hsl 0 0.0 0.0) ' '
+blockTile (Tree Spruce Leaf) = Tile (hsl 120 0.8 0.2) 'l'
 blockTile (Tree _ Leaf) = Tile (hsl 120 0.8 0.4) 'l'
 blockTile (Tree _ Trunk) = Tile (hsl 40 0.8 0.4) 'O'
 

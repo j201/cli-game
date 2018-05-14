@@ -36,7 +36,8 @@ data TreeType =
     Birch |
     Elm |
     Maple |
-    Oak
+    Oak |
+    Spruce
     deriving (Eq, Show, Ord)
 
 data Block =
