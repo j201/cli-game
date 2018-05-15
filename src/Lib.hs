@@ -200,21 +200,23 @@ runGame vty ui = do
         EvResize w h -> runGame vty $ set dr (min (2*maxDim+1) w, min (2*maxDim+1) h) ui
         _ -> runGame vty (handleEvent e ui)
 
-initUIState :: DisplayRegion -> IO UIState
-initUIState dr = do seed <- getStdRandom random
-                    let (w,h) = dr
-                    return $ UIState {
-                                 _selected = Nothing,
-                                 _game = initGame seed,
-                                 _inputMode = Normal,
-                                 _lookLoc = V3 0 0 0,
-                                 _dr = (min (2*maxDim+1) w, min (2*maxDim+1) h)
-                             }
+initUIState :: Maybe Int -> DisplayRegion -> IO UIState
+initUIState s dr = do seed <- case s of
+                                Just s -> return s
+                                Nothing -> getStdRandom random
+                      let (w,h) = dr
+                      return $ UIState {
+                                   _selected = Nothing,
+                                   _game = initGame seed,
+                                   _inputMode = Normal,
+                                   _lookLoc = V3 0 0 0,
+                                   _dr = (min (2*maxDim+1) w, min (2*maxDim+1) h)
+                               }
 
 run = do
     setEnv "TERM" "xterm-256color"
     cfg <- standardIOConfig
     vty <- mkVty cfg
     dr <- outputForConfig cfg >>= displayBounds
-    ui <- initUIState dr
+    ui <- initUIState Nothing dr
     runGame vty ui

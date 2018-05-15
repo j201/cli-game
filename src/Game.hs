@@ -40,12 +40,6 @@ topNonAirLoc a l = let z = l^._z
                             else find (\x -> a ! (set _z x l) == Air) [z+1..maxDim]
                    in fmap (\z -> set _z z l) z'
 
--- Assumes that a starting point at (0,0,z) can be found
-initLoc :: Area -> Loc
-initLoc a = V3 0 0 (if a ! (V3 0 0 0) == Air
-                    then head $ filter (\z -> a ! (V3 0 0 (z-1)) /= Air) [0,-1..]
-                    else head $ filter (\z -> a ! (V3 0 0 z) == Air) [1..])
-
 initGame :: Int -> Game
 initGame seed = let (ai, a) = genArea Map.empty (V2 0 0) seed
                 in Game {
@@ -109,8 +103,10 @@ moveArea dir g = let newAreaLoc = g^.areaInfo^.areaLoc + dir
                         Map.findWithDefault (genArea (g^.allAreas) newAreaLoc (g^.seed))
                                             newAreaLoc
                                             (g^.allAreas)
-                     newLoc = (\a b -> if b == 0 then a else -b*maxDim) <$> g^.loc
-                                                                        <*> (V3 (dir^._x) (dir^._y) 0)
+                     newX = if dir^._x == 0 then g^.loc^._x else -(dir^._x)*maxDim
+                     newY = if dir^._y == 0 then g^.loc^._y else -(dir^._y)*maxDim
+                     newLoc = case topNonAirLoc newArea (V3 newX newY 0) of
+                                Just l -> l -- TODO: deal with bug here: what if all tiles from z=-maxDim to maxDim are occupied?
                   in g & area .~ newArea
                        & areaInfo .~ newAreaInfo
                        & loc .~ newLoc
