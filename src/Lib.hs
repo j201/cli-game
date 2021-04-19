@@ -12,6 +12,7 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Linear.V2
 import Linear.V3
+import Linear.Vector ((^*), (*^), (^+^), (^-^), negated)
 import Lens.Micro.Platform
 import Graphics.Vty
 import qualified Data.Sequence as DS
@@ -28,7 +29,8 @@ data UIState = UIState {
     _selected :: Maybe Int,
     _inputMode :: InputMode,
     _lookLoc :: Loc,
-    _dr :: DisplayRegion
+    _dr :: DisplayRegion,
+    _lastMove :: Dir
 }
 
 makeLenses ''UIState
@@ -84,7 +86,7 @@ handleEvent (EvKey (KChar c) mods) ui =
         (Normal,'r',[]) -> set inputMode Remove ui
         (Normal,'p',[]) -> set inputMode Place ui
         (Normal,_,[]) -> if isDirKey c
-                         then act $ Move (keyDir c)
+                         then set lastMove (keyDir c) $ act (Move (keyDir c))
                          else ui
         (Remove,_,[]) -> set inputMode Normal $
                          if isDirKey c && isValidDir g (keyDir c)
@@ -165,7 +167,6 @@ status ui = foldl1 (<->) $
                 show $ ui^.game^.inventory,
                 show $ ui^.selected,
                 show $ ui^.dr,
-                show $ drawRange (ui^.dr^._2) (ui^.game^.loc^._y),
                 if ui^.game^.creative then "Creative" else "Non-creative",
                 show $ ui^.game^.seed
             ]
@@ -177,6 +178,63 @@ drawRange w x = let vision = (w-1) `div` 2
                    else if x - vision + w - 1 > maxDim then [maxDim - w + 1 .. maxDim]
                    else [x - vision .. x - vision + w - 1]
 
+rayBlocks :: Loc -> Double -> Double -> [Loc]
+rayBlocks origin theta phi = rayBlocks_ origin (V3 0 0 0) (V3 0 0 0)
+    where rayBlocks_ :: Loc -> V3 Double -> V3 Double -> [Loc]
+          rayBlocks_ block rayPos lastFace = let (blockPos, face) = nextPos rayPos lastFace
+                                             in (block ^+^ fmap round face) : rayBlocks_ (block ^+^ fmap round face)
+                                                                                         blockPos
+                                                                                         (negated face)
+          nextPos :: V3 Double -> V3 Double -> (V3 Double, V3 Double)
+          nextPos pos lastFace = let changes = map (nextChange pos) allFaces
+                                     validResults = filter (\(c,f) -> f /= lastFace &&
+                                                                    all ((<= 0.5) . abs) (c ^+^ pos) &&
+                                                                    correctQuadrant c) $
+                                                           zip changes allFaces
+                                     (change,face) = head validResults
+                                 in (change ^+^ pos ^-^ face, face)
+          nextChange :: V3 Double -> V3 Double -> V3 Double
+          nextChange pos face | face^._x /= 0 = let x = 0.5 * face^._x - pos^._x
+                                                    y = x * tan phi
+                                                    z = sqrt (x*x + y*y) / tan theta
+                                                in V3 x y z
+                              | face^._y /= 0 = let y = 0.5 * face^._y - pos^._y
+                                                    x = y / tan phi
+                                                    z = sqrt (x*x + y*y) / tan theta
+                                               in V3 x y z
+                              | otherwise    = let z = 0.5 * face^._z - pos^._z
+                                                   rxy = z * tan theta
+                                                   y = rxy * sin phi
+                                                   x = rxy * cos phi
+                                               in V3 x y z
+          correctQuadrant :: V3 Double -> Bool
+          correctQuadrant pos = ((pos^._x >= 0) == (cos phi >= 0)) && ((pos^._y >= 0) == (sin phi >= 0))
+          allFaces :: [V3 Double]
+          allFaces = [V3 (-1) 0 0, V3 1 0 0, V3 0 (-1) 0, V3 0 1 0, V3 0 0 (-1), V3 0 0 1]
+
+rayImage :: Area -> [Loc] -> Image
+rayImage area r = rayImage_ (zip r (map (0.98 **) [0..]))
+    where rayImage_ ((l,d):rs) = if not (inBounds area l)
+                                 then blockImage Air
+                                 else let b = area ! l
+                                      in if b /= Air
+                                         then blockImageWith (over (foreColor._lightness) (* d)) b
+                                         else rayImage_ rs
+
+vertFov = pi/3
+horizFov = pi/2
+vertFovOffset = pi*5/12
+
+firstPersonView :: UIState -> Image
+firstPersonView ui = let a = ui^.game^.area
+                         centre = ui^.game^.loc
+                         phiOffset = atan2 (fromIntegral (ui^.lastMove^._y))
+                                           (fromIntegral (ui^.lastMove^._x))
+                     in vertCat $ map horizCat [[rayImage a (rayBlocks centre theta phi) |
+                                                 phi <- map (phiOffset +) $ angleRange horizFov 0 51] |
+                                                theta <- angleRange vertFov vertFovOffset 25]
+    where angleRange fov offset n = [fov * (x/(n-1) - 0.5) + offset | x <- [0..n-1]] :: [Double]
+
 render :: UIState -> Picture
 render ui = let g = ui^.game
                 centre = if ui^.inputMode == Look
@@ -184,12 +242,10 @@ render ui = let g = ui^.game
                          else g^.loc
                 (w,h) = ui^.dr
             in picForImage $
-               (<|> status ui) $
-               (vertCat . reverse) $
-               map horizCat $
-               [[imageAt ui (V3 x y (centre^._z)) |
-                 x <- drawRange w (centre^._x)] |
-                y <- drawRange h (centre^._y)]
+               (<|> (status ui <-> firstPersonView ui)) $
+               vertCat $ map horizCat [[imageAt ui (V3 x y (centre^._z)) |
+                                        x <- drawRange w (centre^._x)] |
+                                       y <- reverse $ drawRange h (centre^._y)]
 
 runGame :: Vty -> UIState -> IO ()
 runGame vty ui = do
@@ -210,7 +266,8 @@ initUIState s dr = do seed <- case s of
                                    _game = initGame seed,
                                    _inputMode = Normal,
                                    _lookLoc = V3 0 0 0,
-                                   _dr = (min (2*maxDim+1) w, min (2*maxDim+1) h)
+                                   _dr = (min (2*maxDim+1) w, min (2*maxDim+1) h),
+                                   _lastMove = V3 1 0 0
                                }
 
 run = do

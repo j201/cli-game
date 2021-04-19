@@ -54,7 +54,7 @@ initGame seed = let (ai, a) = genArea Map.empty (V2 0 0) seed
                        _seed = seed
                    }
 
-inBounds :: Array Loc a -> Dir -> Bool
+inBounds :: Array Loc a -> Loc -> Bool
 inBounds a xyz = let (lb,ub) = bounds a
                  in all (>= 0) (xyz - lb) &&
                     all (<= 0) (xyz - ub)
